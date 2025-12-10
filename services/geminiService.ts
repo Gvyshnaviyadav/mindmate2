@@ -1,15 +1,34 @@
 import { GoogleGenAI, Type, LiveServerMessage, Modality } from "@google/genai";
 
-// Ensure API Key availability
-const getApiKey = () => process.env.API_KEY || '';
+// Ensure API Key availability for both Cloud/AI Studio and Local (Vite) environments
+const getApiKey = () => {
+  if (typeof process !== 'undefined' && process.env.API_KEY) {
+    return process.env.API_KEY;
+  }
+  // @ts-ignore - Vite uses import.meta.env
+  if (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_KEY) {
+    // @ts-ignore
+    return import.meta.env.VITE_API_KEY;
+  }
+  return '';
+};
+
+// Helper to check for AI Studio specific features safely
+const checkAiStudioKey = async () => {
+  if (typeof window !== 'undefined' && (window as any).aistudio) {
+    const aiStudio = (window as any).aistudio;
+    if (aiStudio.hasSelectedApiKey && !await aiStudio.hasSelectedApiKey()) {
+      await aiStudio.openSelectKey();
+    }
+  }
+};
 
 // --- Chat Therapist (Gemini 2.5 Flash) ---
 export const generateTherapistResponse = async (history: { role: string; parts: string[] }[], newMessage: string) => {
-  const ai = new GoogleGenAI({ apiKey: getApiKey() });
+  const apiKey = getApiKey();
+  if (!apiKey) throw new Error("API Key not found");
   
-  // Transform history to match SDK expectation if needed, or maintain session manually
-  // Using generateContent for single-turn with history context packed in for simplicity in this demo structure
-  // In a real app, use ai.chats.create
+  const ai = new GoogleGenAI({ apiKey });
   
   const chat = ai.chats.create({
     model: 'gemini-2.5-flash',
@@ -56,14 +75,8 @@ export const analyzeWellnessImage = async (base64Data: string, mimeType: string)
 
 // --- Video Generation (Veo) ---
 export const generateRelaxationVideo = async (prompt: string) => {
-  // Check for Veo Key
-  if (window.aistudio && !await window.aistudio.hasSelectedApiKey()) {
-     await window.aistudio.openSelectKey();
-  }
+  await checkAiStudioKey();
 
-  // Re-instantiate with potentially new key context if needed, 
-  // though process.env.API_KEY usually updates. 
-  // For Veo specifically, we often need to ensure we have the paid key.
   const ai = new GoogleGenAI({ apiKey: getApiKey() });
 
   let operation = await ai.models.generateVideos({
@@ -89,10 +102,7 @@ export const generateRelaxationVideo = async (prompt: string) => {
 
 // --- Image Generation (Gemini 3 Pro Image) ---
 export const generateVisionBoardImage = async (prompt: string) => {
-    // Check for Paid Key for high quality image gen
-    if (window.aistudio && !await window.aistudio.hasSelectedApiKey()) {
-        await window.aistudio.openSelectKey();
-    }
+    await checkAiStudioKey();
     
     const ai = new GoogleGenAI({ apiKey: getApiKey() });
     const response = await ai.models.generateContent({
