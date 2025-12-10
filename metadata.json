@@ -1,0 +1,8 @@
+{
+  "name": "MindMate AI",
+  "description": "A multimodal AI-powered student mental wellness platform featuring voice analysis, text therapy, and generative relaxation.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
